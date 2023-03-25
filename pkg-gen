@@ -1,0 +1,61 @@
+#!/bin/bash
+set -e
+# set -x
+
+pkgname=libunistring
+pkgver=1.1
+
+cd "$(dirname "$0")"
+DESTDIR="$(pwd)"
+TARGET=${1:-x86_64-linux-musl}
+BUILD="$DESTDIR/build"
+
+export CC="zig cc --target=$TARGET"
+export CXX="zig c++ --target=$TARGET"
+
+rm -rf include lib config.h "$BUILD"
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+if ! [ -d ${pkgname}-${pkgver} ]; then
+    curl -L https://ftp.gnu.org/gnu/$pkgname/${pkgname}-${pkgver}.tar.xz | tar -xJ
+fi
+cd ${pkgname}-${pkgver}
+
+if ! [ -e config.log ] ; then
+    ./configure --prefix="$DESTDIR"
+fi
+make -j "$(nproc)"
+make install
+
+echo 'pub const source_files = [_][]const u8{' > "$DESTDIR/libunistring.sources.zig"
+
+find lib -name '*.o' | grep -v '/\.libs/' | sort -u | while read -r fn; do
+    SRCDIR="$(dirname "$fn")"
+    OFN="$(basename -s .o "$fn")"
+    SRCFN=${OFN#libunistring_la-}
+    SRC=$SRCDIR/$SRCFN.c
+    if ! [ -e "$SRCDIR/$SRCFN.c" ] ; then
+        echo " MISSING"
+        exit 1
+    fi
+
+    cp -v --parents "$SRC" "$DESTDIR"
+    echo "    \"$SRC\"," >> "$DESTDIR/libunistring.sources.zig"
+done
+echo '};' >> "$DESTDIR/libunistring.sources.zig"
+
+grep -IRn '#include.*\.c"' lib | cut -d ' ' -f2 | xargs -I{} echo lib/{} | sort -u | while read -r fn; do
+    cp -v --parents "$fn" "$DESTDIR"
+done
+
+find lib -name '*.h' | while read -r fn; do
+    cp -v --parents "$fn" "$DESTDIR"
+done
+
+cp -v config.h "$DESTDIR"
+
+cd "$DESTDIR"
+rm -rv lib/libunistring.*
+rm -r share
+rm -r "$BUILD"
