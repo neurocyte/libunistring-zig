@@ -25,7 +25,7 @@ pub fn build(b: *std.build.Builder) void {
     lib.addIncludePath(".");
     addSources(lib);
 
-    lib.install();
+    b.installArtifact(lib);
     lib.installHeadersDirectory("include", "");
 }
 
