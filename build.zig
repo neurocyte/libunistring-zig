@@ -1,6 +1,6 @@
 const std = @import("std");
-const sources = @import("libunistring.sources.zig");
-
+const sources_musl = @import("musl/libunistring.sources.zig");
+const sources_gnu = @import("gnu/libunistring.sources.zig");
 const P = std.fs.path.sep_str;
 
 fn thisDir() []const u8 {
@@ -10,9 +10,33 @@ const package_dir = thisDir();
 
 const flags = [_][]const u8{ "-DHAVE_CONFIG_H", "-DNO_XMALLOC", "-DIN_LIBUNISTRING", "-DDEPENDS_ON_LIBICONV=1" };
 
+const Sources = struct {
+    source_files: []const []const u8,
+    include_path: []const u8,
+    lib_include_path: []const u8,
+    base_include_path: []const u8,
+};
+
+pub fn get_sources(src: anytype) Sources {
+    return .{
+        .source_files = &src.source_files,
+        .include_path = src.include_path,
+        .lib_include_path = src.lib_include_path,
+        .base_include_path = src.base_include_path,
+    };
+}
+
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const abi = target.abi orelse .gnu;
+
+    const sources = switch (abi) {
+        .gnu, .gnuabin32, .gnuabi64, .gnueabi, .gnueabihf, .gnuf32, .gnuf64, .gnusf, .gnux32, .gnuilp32 => get_sources(sources_gnu),
+        .musl, .musleabi, .musleabihf, .muslx32 => get_sources(sources_musl),
+        else => get_sources(sources_musl),
+    };
 
     const lib = b.addStaticLibrary(.{
         .name = "libunistring",
@@ -20,16 +44,16 @@ pub fn build(b: *std.build.Builder) void {
         .optimize = optimize,
     });
     lib.linkLibC();
-    lib.addIncludePath("include");
-    lib.addIncludePath("lib");
-    lib.addIncludePath(".");
-    addSources(lib);
+    lib.addIncludePath(sources.include_path);
+    lib.addIncludePath(sources.lib_include_path);
+    lib.addIncludePath(sources.base_include_path);
+    addSources(lib, sources);
 
     b.installArtifact(lib);
-    lib.installHeadersDirectory("include", "");
+    lib.installHeadersDirectory(sources.include_path, "");
 }
 
-fn addSources(self: *std.build.CompileStep) void {
+fn addSources(self: *std.build.CompileStep, sources: Sources) void {
     for (sources.source_files) |file| {
         self.addCSourceFile(file, &flags);
     }
