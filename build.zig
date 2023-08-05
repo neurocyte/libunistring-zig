@@ -44,17 +44,11 @@ pub fn build(b: *std.build.Builder) void {
         .optimize = optimize,
     });
     lib.linkLibC();
-    lib.addIncludePath(sources.include_path);
-    lib.addIncludePath(sources.lib_include_path);
-    lib.addIncludePath(sources.base_include_path);
-    addSources(lib, sources);
+    lib.addIncludePath(.{ .path = sources.include_path });
+    lib.addIncludePath(.{ .path = sources.lib_include_path });
+    lib.addIncludePath(.{ .path = sources.base_include_path });
+    lib.addCSourceFiles(sources.source_files, &flags);
 
     b.installArtifact(lib);
     lib.installHeadersDirectory(sources.include_path, "");
-}
-
-fn addSources(self: *std.build.CompileStep, sources: Sources) void {
-    for (sources.source_files) |file| {
-        self.addCSourceFile(file, &flags);
-    }
 }
