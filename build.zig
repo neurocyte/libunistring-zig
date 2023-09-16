@@ -1,6 +1,7 @@
 const std = @import("std");
-const sources_musl = @import("musl/libunistring.sources.zig");
-const sources_gnu = @import("gnu/libunistring.sources.zig");
+const sources_linux_musl = @import("linux-musl/libunistring.sources.zig");
+const sources_linux_gnu = @import("linux-gnu/libunistring.sources.zig");
+const sources_macos = @import("macos/libunistring.sources.zig");
 const P = std.fs.path.sep_str;
 
 fn thisDir() []const u8 {
@@ -32,18 +33,22 @@ pub fn build(b: *std.build.Builder) void {
 
     const abi = target.abi orelse .gnu;
 
-    const sources = switch (abi) {
-        .gnu, .gnuabin32, .gnuabi64, .gnueabi, .gnueabihf, .gnuf32, .gnuf64, .gnusf, .gnux32, .gnuilp32 => get_sources(sources_gnu),
-        .musl, .musleabi, .musleabihf, .muslx32 => get_sources(sources_musl),
-        else => get_sources(sources_musl),
-    };
-
     const lib = b.addStaticLibrary(.{
         .name = "libunistring",
         .target = target,
         .optimize = optimize,
     });
     lib.linkLibC();
+
+    const sources = switch (lib.target_info.target.os.tag) {
+        .macos => get_sources(sources_macos),
+        else => switch (abi) {
+            .gnu, .gnuabin32, .gnuabi64, .gnueabi, .gnueabihf, .gnuf32, .gnuf64, .gnusf, .gnux32, .gnuilp32 => get_sources(sources_linux_gnu),
+            .musl, .musleabi, .musleabihf, .muslx32 => get_sources(sources_linux_musl),
+            else => get_sources(sources_linux_musl),
+        },
+    };
+
     lib.addIncludePath(.{ .path = sources.include_path });
     lib.addIncludePath(.{ .path = sources.lib_include_path });
     lib.addIncludePath(.{ .path = sources.base_include_path });

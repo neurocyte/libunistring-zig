@@ -3,8 +3,12 @@ set -e
 # set -x
 
 if [ -z "$1" ] ; then
-    $0 native-native-musl
-    $0 native-native-gnu
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        $0 native-native-none
+    else
+        $0 native-native-musl
+        $0 native-native-gnu
+    fi
     exit 0
 fi
 
@@ -13,7 +17,19 @@ pkgver=1.1
 
 cd "$(dirname "$0")"
 TARGET=$1
-ARCHDIR=$(echo $TARGET | cut -d - -f3)
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    SED=gsed
+    CP=gcp
+    NPROCS="$(sysctl -n hw.logicalcpu)"
+    ARCHDIR=macos
+else
+    SED=sed
+    CP=cp
+    NPROCS="$(nproc)"
+    ARCHDIR=linux-$(echo $TARGET | cut -d - -f3)
+fi
+
 DESTDIR="$(pwd)/$ARCHDIR"
 BUILD="$DESTDIR/build-$TARGET"
 
@@ -32,7 +48,7 @@ cd ${pkgname}-${pkgver}
 if ! [ -e config.log ] ; then
     ./configure --prefix="$DESTDIR"
 fi
-make -j "$(nproc)"
+make -j "$NPROCS"
 make install
 
 echo 'pub const source_files = [_][]const u8{' > "$DESTDIR/libunistring.sources.zig"
@@ -47,7 +63,7 @@ find lib -name '*.o' | grep -v '/\.libs/' | sort -u | while read -r fn; do
         exit 1
     fi
 
-    cp -v --parents "$SRC" "$DESTDIR"
+    $CP -v --parents "$SRC" "$DESTDIR"
     echo "    \"$ARCHDIR/$SRC\"," >> "$DESTDIR/libunistring.sources.zig"
 done
 echo '};' >> "$DESTDIR/libunistring.sources.zig"
@@ -57,17 +73,17 @@ echo "pub const lib_include_path = \"$ARCHDIR/lib\";" >> "$DESTDIR/libunistring.
 echo "pub const base_include_path = \"$ARCHDIR\";" >> "$DESTDIR/libunistring.sources.zig"
 
 grep -IRn '#include.*\.c"' lib | cut -d ' ' -f2 | xargs -I{} echo lib/{} | sort -u | while read -r fn; do
-    cp -v --parents "$fn" "$DESTDIR"
+    $CP -v --parents "$fn" "$DESTDIR"
 done
 
 find lib -name '*.h' | while read -r fn; do
-    cp -v --parents "$fn" "$DESTDIR"
+    $CP -v --parents "$fn" "$DESTDIR"
 done
 
-cp -v config.h "$DESTDIR"
+$CP -v config.h "$DESTDIR"
 
 cd "$DESTDIR"
 rm -rv lib/libunistring.*
 rm -r share
 rm -r "$BUILD"
-sed -i "s|${DESTDIR}|libunistring-zig/musl|g" config.h
+$SED -i "s|${DESTDIR}|libunistring-zig/$ARCHDIR|g" config.h
