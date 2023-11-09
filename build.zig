@@ -52,7 +52,7 @@ pub fn build(b: *std.build.Builder) void {
     lib.addIncludePath(.{ .path = sources.include_path });
     lib.addIncludePath(.{ .path = sources.lib_include_path });
     lib.addIncludePath(.{ .path = sources.base_include_path });
-    lib.addCSourceFiles(sources.source_files, &flags);
+    lib.addCSourceFiles(.{ .files = sources.source_files, .flags = &flags });
 
     b.installArtifact(lib);
     lib.installHeadersDirectory(sources.include_path, "");
