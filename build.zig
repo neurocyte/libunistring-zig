@@ -27,11 +27,9 @@ pub fn get_sources(src: anytype) Sources {
     };
 }
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
-    const abi = target.abi orelse .gnu;
 
     const lib = b.addStaticLibrary(.{
         .name = "libunistring",
@@ -40,9 +38,9 @@ pub fn build(b: *std.build.Builder) void {
     });
     lib.linkLibC();
 
-    const sources = switch (lib.target_info.target.os.tag) {
+    const sources = switch (lib.rootModuleTarget().os.tag) {
         .macos => get_sources(sources_macos),
-        else => switch (abi) {
+        else => switch (lib.rootModuleTarget().abi) {
             .gnu, .gnuabin32, .gnuabi64, .gnueabi, .gnueabihf, .gnuf32, .gnuf64, .gnusf, .gnux32, .gnuilp32 => get_sources(sources_linux_gnu),
             .musl, .musleabi, .musleabihf, .muslx32 => get_sources(sources_linux_musl),
             else => get_sources(sources_linux_musl),
