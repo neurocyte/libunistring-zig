@@ -53,5 +53,5 @@ pub fn build(b: *std.Build) void {
     lib.addCSourceFiles(.{ .files = sources.source_files, .flags = &flags });
 
     b.installArtifact(lib);
-    lib.installHeadersDirectory(sources.include_path, "");
+    lib.installHeadersDirectory(.{ .path = sources.include_path }, "", .{});
 }
