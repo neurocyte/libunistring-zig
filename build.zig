@@ -47,11 +47,11 @@ pub fn build(b: *std.Build) void {
         },
     };
 
-    lib.addIncludePath(.{ .path = sources.include_path });
-    lib.addIncludePath(.{ .path = sources.lib_include_path });
-    lib.addIncludePath(.{ .path = sources.base_include_path });
+    lib.addIncludePath(b.path(sources.include_path));
+    lib.addIncludePath(b.path(sources.lib_include_path));
+    lib.addIncludePath(b.path(sources.base_include_path));
     lib.addCSourceFiles(.{ .files = sources.source_files, .flags = &flags });
 
     b.installArtifact(lib);
-    lib.installHeadersDirectory(.{ .path = sources.include_path }, "", .{});
+    lib.installHeadersDirectory(b.path(sources.include_path), "", .{});
 }
