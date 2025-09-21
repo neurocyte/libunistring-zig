@@ -31,17 +31,16 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "libunistring",
+    const lib = b.addLibrary(.{ .name = "libunistring", .root_module = b.createModule(.{
         .target = target,
         .optimize = optimize,
-    });
+    }), .linkage = std.builtin.LinkMode.static });
     lib.linkLibC();
 
     const sources = switch (lib.rootModuleTarget().os.tag) {
         .macos => get_sources(sources_macos),
         else => switch (lib.rootModuleTarget().abi) {
-            .gnu, .gnuabin32, .gnuabi64, .gnueabi, .gnueabihf, .gnuf32, .gnuf64, .gnusf, .gnux32, .gnuilp32 => get_sources(sources_linux_gnu),
+            .gnu, .gnuabin32, .gnuabi64, .gnueabi, .gnueabihf, .gnuf32, .gnusf, .gnux32 => get_sources(sources_linux_gnu),
             .musl, .musleabi, .musleabihf, .muslx32 => get_sources(sources_linux_musl),
             else => get_sources(sources_linux_musl),
         },
