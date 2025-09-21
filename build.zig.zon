@@ -1,5 +1,6 @@
 .{
-    .name = "libunistring",
+    .name = .libunistring,
+    .fingerprint = 0xe601b539a507d757,
     .version = "1.1.0",
     .dependencies = .{},
     .paths = .{
